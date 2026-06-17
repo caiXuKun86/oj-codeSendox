@@ -1,0 +1,9 @@
+server:
+  port: 8090
+logging:
+  level:
+    # 关闭 HttpClient 底层的疯狂 DEBUG 输出
+    org.apache.hc.client5.http: INFO
+    org.apache.http: INFO
+    # 关闭 Docker Java 客户端自身的多余 DEBUG 输出
+    com.github.dockerjava: INFO
