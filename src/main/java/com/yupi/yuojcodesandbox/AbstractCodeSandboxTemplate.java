@@ -183,7 +183,6 @@ public abstract class AbstractCodeSandboxTemplate implements CodeSandbox {
                     log.info("成功清理本地用户代码目录: {}", userCodeParentPath);
                 }
             }
-            System.out.println(response);
         }
     }
 

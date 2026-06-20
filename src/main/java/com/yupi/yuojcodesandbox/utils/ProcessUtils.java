@@ -116,12 +116,6 @@ public class ProcessUtils {
             // 4. 捞取真正的 exitCode
             Long exitCode = dockerClient.inspectExecCmd(execId).exec().getExitCodeLong();
             executeMessage.setExitValue(exitCode != null ? exitCode.intValue() : -1);
-            // 读取错误输出
-            File errorFile = new File(userOutputParentPath, "error_" + index + ".txt");
-            if (errorFile.exists()) {
-                executeMessage.setMessage(FileUtil.readUtf8String(errorFile).trim());
-            }
-
             // 读取底层资源监控统计
             File statsFile = new File(userOutputParentPath, "stats_" + index + ".txt");
             if (statsFile.exists()) {
@@ -136,7 +130,9 @@ public class ProcessUtils {
                     executeMessage.setMemory(Long.parseLong(parts[1].trim()));
                 }
             }
-            System.out.println(exitCode);
+            if (exitCode != null && exitCode == 1) {
+                executeMessage.setMessage("运行错误");
+            }
             if (exitCode != null && exitCode == 9) {
                 executeMessage.setMessage("Memory Limit Exceeded");
             }
