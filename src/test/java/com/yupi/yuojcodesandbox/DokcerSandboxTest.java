@@ -6,38 +6,40 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
 
 @SpringBootTest
 class DokcerSandboxTest {
 
-    public static final String javaCode = "import java.io.BufferedReader;\n" +
-            "import java.io.InputStreamReader;\n" +
-            "import java.io.IOException;\n" +
-            "import java.util.StringTokenizer;\n" +
+    // Java 极速版排序代码 (使用 StreamTokenizer 优化 IO)
+    public static final String javaCode = "import java.io.*;\n" +
+            "import java.util.*;\n" +
             "\n" +
             "public class Main {\n" +
             "    public static void main(String[] args) throws IOException {\n" +
             "        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n" +
-            "        String line = br.readLine();\n" +
-            "        if (line == null) return;\n" +
-            "        StringTokenizer st = new StringTokenizer(line);\n" +
-            "        if (!st.hasMoreTokens()) return;\n" +
-            "        \n" +
-            "        int n = Integer.parseInt(st.nextToken());\n" +
-            "        long sum = 0;\n" +
+            "        StreamTokenizer st = new StreamTokenizer(br);\n" +
+            "        if (st.nextToken() == StreamTokenizer.TT_EOF) return;\n" +
+            "        int n = (int) st.nval;\n" +
+            "        int[] arr = new int[n];\n" +
             "        for (int i = 0; i < n; i++) {\n" +
-            "            if (st.hasMoreTokens()) {\n" +
-            "                int x = Integer.parseInt(st.nextToken());\n" +
-            "                sum += x / 2;\n" +
-            "            }\n" +
+            "            st.nextToken();\n" +
+            "            arr[i] = (int) st.nval;\n" +
             "        }\n" +
-            "        System.out.println(sum);\n" +
+            "        Arrays.sort(arr);\n" +
+            "        StringBuilder sb = new StringBuilder();\n" +
+            "        for (int i = 0; i < n; i++) {\n" +
+            "            sb.append(arr[i]);\n" +
+            "            if (i < n - 1) sb.append(\" \");\n" +
+            "        }\n" +
+            "        System.out.println(sb.toString());\n" +
             "    }\n" +
             "}";
 
+    // C++ 极速版排序代码
     public static final String cppCode = "#include <iostream>\n" +
+            "#include <vector>\n" +
+            "#include <algorithm>\n" +
             "\n" +
             "using namespace std;\n" +
             "\n" +
@@ -48,94 +50,88 @@ class DokcerSandboxTest {
             "    \n" +
             "    int n;\n" +
             "    if (cin >> n) {\n" +
-            "        long long sum = 0;\n" +
+            "        vector<int> data(n);\n" +
             "        for (int i = 0; i < n; i++) {\n" +
-            "            int x;\n" +
-            "            cin >> x;\n" +
-            "            sum += x / 2;\n" +
+            "            cin >> data[i];\n" +
             "        }\n" +
-            "        cout << sum << \"\\n\";\n" +
+            "        sort(data.begin(), data.end());\n" +
+            "        for (int i = 0; i < n; i++) {\n" +
+            "            cout << data[i];\n" +
+            "            if (i < n - 1) cout << \" \";\n" +
+            "        }\n" +
+            "        cout << \"\\n\";\n" +
             "    }\n" +
             "    return 0;\n" +
             "}";
+
+    // Python 排序代码
     public static final String pythonCode = "import sys\n" +
             "\n" +
             "def main():\n" +
-            "    # 🌟 关键修改：用 readline() 替代 read()，遇到回车直接放行，不再死等 EOF！\n" +
-            "    input_data = sys.stdin.readline().split()\n" +
+            "    # 使用 read().split() 可以完美兼容多行输入和单行超长输入\n" +
+            "    input_data = sys.stdin.read().split()\n" +
             "    if not input_data:\n" +
             "        return\n" +
             "    \n" +
             "    n = int(input_data[0])\n" +
-            "    total_sum = 0\n" +
+            "    # 截取后面的 n 个元素并转换为 int\n" +
+            "    arr = [int(x) for x in input_data[1:n+1]]\n" +
+            "    arr.sort()\n" +
             "    \n" +
-            "    limit = min(n + 1, len(input_data))\n" +
-            "    for i in range(1, limit):\n" +
-            "        total_sum += int(input_data[i]) // 2\n" +
-            "        \n" +
-            "    print(total_sum)\n" +
+            "    # 拼接输出\n" +
+            "    print(\" \".join(map(str, arr)))\n" +
             "\n" +
             "if __name__ == '__main__':\n" +
             "    main()";
+
     @Resource
     private CodeSandboxFactory codeSandboxFactory;
 
     @Test
     public void testMegaDataVolume() {
         // 1. 指定你要测试的语言: "java" | "cpp" | "python"
-        String targetLanguage = "python";
+        String targetLanguage = "cpp";
         CodeSandbox codeSandbox = codeSandboxFactory.getSandbox(targetLanguage);
 
-        ExecuteCodeRequest request = new ExecuteCodeRequest();
-        request.setLanguage(targetLanguage);
-
-        // 2. 根据语言路由注入对应的优化源码
+        String targetCode = "cpp";
         if ("java".equals(targetLanguage)) {
-            request.setCode(javaCode);
+            targetCode = javaCode;
         } else if ("cpp".equals(targetLanguage)) {
-            request.setCode(cppCode);
+            targetCode = cppCode;
         } else if ("python".equals(targetLanguage)) {
-            request.setCode(pythonCode);
+            targetCode = pythonCode;
         }
 
-        // 百万级别数据，给足安全边界
-        request.setTimeLimit(1000L); // 15秒超时限制
-        request.setMemoryLimit(256 * 1024 * 1024L); // 256MB 内存限制
+        String inputParentPath = "/root/app/tmp/in/2068152766221721602";
+        String userOutputParentPath = "/root/app/tmp/userOut";
 
-        // 3. 🌟 动态构建 10^6 级别的超大测试用例
-        System.out.println("正在内存中生成 10^6 级别超大数据流...");
-        int n = 10000000; // 100万
-        StringBuilder sb = new StringBuilder();
 
-        // 首位是 n
-        sb.append(n);
 
-        // 循环追加 100 万个数字 "4"
-        for (int i = 0; i < n; i++) {
-            sb.append(" ").append(4);
+        File outDir = new File(userOutputParentPath);
+        if (!outDir.exists()) {
+            outDir.mkdirs();
         }
-        sb.append("\n"); // 喂入换行符触发 readline/流结束
 
-        List<String> inputList = new ArrayList<>();
-        inputList.add(sb.toString()); // 塞入大用例
-        request.setInputList(inputList);
-
-        // 释放 StringBuilder 内存，防止影响宿主机
-        sb.setLength(0);
+        // 3. 构造请求参数
+        ExecuteCodeRequest request = ExecuteCodeRequest.builder()
+                .code(targetCode)
+                .language(targetLanguage)
+                .inputParentPath(inputParentPath)
+                .userOutputParentPath(userOutputParentPath)
+                .count(5)
+                .timeLimit(1000L)
+                .memoryLimit(256 * 1024 * 1024L)
+                .build();
 
         // 4. 发起沙箱评测
-        System.out.println("====== 开始发起 " + targetLanguage + " 百万数据压测 ======");
+        System.out.println("====== 开始发起 " + targetLanguage + " 排序压测 ======");
         ExecuteCodeResponse response = codeSandbox.executeCode(request);
         System.out.println("====== 压测执行完毕 ======");
         System.out.println("状态码: " + response.getStatus());
-        System.out.println("输出结果: " + response.getOutputList());
         System.out.println("错误/监控日志: " + response.getMessage());
+
 
     }
 
 
-
-
 }
-
-

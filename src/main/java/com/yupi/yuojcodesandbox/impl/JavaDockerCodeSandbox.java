@@ -1,8 +1,6 @@
 package com.yupi.yuojcodesandbox.impl;
 
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.dfa.WordTree;
-import com.github.dockerjava.api.DockerClient;
 import com.yupi.yuojcodesandbox.AbstractCodeSandboxTemplate;
 import com.yupi.yuojcodesandbox.model.ExecuteMessage;
 import com.yupi.yuojcodesandbox.utils.ProcessUtils;
@@ -47,29 +45,17 @@ public class JavaDockerCodeSandbox extends AbstractCodeSandboxTemplate {
     public ExecuteMessage compileCode(File userCodeFile) throws IOException {
         String javaHome = System.getProperty("java.home");
         String javacPath = javaHome + File.separator + "bin" + File.separator + "javac";
-        // 如果 java.home 指向的是 jre 目录，则需要往上走一层到 JDK 根目录
-        if (!FileUtil.exist(javacPath)) {
-            javacPath = new File(javaHome).getParent() + File.separator + "bin" + File.separator + "javac";
-        }
 
-        // 使用动态获取到的绝对路径来执行编译
-        String compileCmd = String.format("%s -encoding utf-8 %s", javacPath, userCodeFile.getAbsolutePath());
-
-        Process compileProcess = Runtime.getRuntime().exec(compileCmd);
-        return ProcessUtils.runProcessAndGetMessage(compileProcess, "编译");
+        String[] compileCmdArray = new String[]{
+                javacPath,                      //编译器的绝对路径
+                "-encoding", "utf-8",           //指定源文件的字符编码为 UTF-8
+                userCodeFile.getAbsolutePath()  //用户 Java 源代码文件的绝对路径
+        };
+        Process compileProcess = Runtime.getRuntime().exec(compileCmdArray);
+        return ProcessUtils.runProcessAndGetMessage(compileProcess);
 
     }
 
-    @Override
-    public ExecuteMessage executeCode(String inputArgs) {
-        // 从 ThreadLocal 中取出父类的变量
-        SandboxContext context = CONTEXT_HOLDER.get();
-        Long timeLimit = context.timeLimit;
-        DockerClient dockerClient = context.dockerClient;
-        String containerId = context.containerId;
-        String language = context.language;
-        return ProcessUtils.executeCommandInContainer(dockerClient, containerId, inputArgs, timeLimit,language);
-    }
 
     @Override
     public String getImageName() {

@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class ExecuteMessage {
-    private Integer exitValue;
     private String output;
+    private Integer exitValue;
     private String message;
     private Long time;
     private Long memory;

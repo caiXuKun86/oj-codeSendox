@@ -1,10 +1,8 @@
 package com.yupi.yuojcodesandbox.impl;
 
 import cn.hutool.dfa.WordTree;
-import com.github.dockerjava.api.DockerClient;
 import com.yupi.yuojcodesandbox.AbstractCodeSandboxTemplate;
 import com.yupi.yuojcodesandbox.model.ExecuteMessage;
-import com.yupi.yuojcodesandbox.utils.ProcessUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -53,18 +51,7 @@ public class PythonDockerCodeSandbox extends AbstractCodeSandboxTemplate {
         return executeMessage;
     }
 
-    @Override
-    public ExecuteMessage executeCode(String inputArgs) {
-        // 从 ThreadLocal 中取出父类的变量，这招非常优雅！
-        SandboxContext context = CONTEXT_HOLDER.get();
-        Long timeLimit = context.timeLimit;
-        DockerClient dockerClient = context.dockerClient;
-        String containerId = context.containerId;
-        String language = context.language;
 
-        // 交给 ProcessUtils 去容器内执行
-        return ProcessUtils.executeCommandInContainer(dockerClient, containerId, inputArgs, timeLimit, language);
-    }
 
     @Override
     public String getImageName() {
