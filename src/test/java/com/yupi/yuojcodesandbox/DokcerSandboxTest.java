@@ -111,7 +111,10 @@ class DokcerSandboxTest {
         if (!outDir.exists()) {
             outDir.mkdirs();
         }
-
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+        }
         // 3. 构造请求参数
         ExecuteCodeRequest request = ExecuteCodeRequest.builder()
                 .code(targetCode)

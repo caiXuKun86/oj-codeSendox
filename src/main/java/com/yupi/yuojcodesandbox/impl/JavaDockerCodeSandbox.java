@@ -43,8 +43,11 @@ public class JavaDockerCodeSandbox extends AbstractCodeSandboxTemplate {
 
     @Override
     public ExecuteMessage compileCode(File userCodeFile) throws IOException {
+
+
         String javaHome = System.getProperty("java.home");
-        String javacPath = javaHome + File.separator + "bin" + File.separator + "javac";
+
+        String javacPath = new File(javaHome).getParent() + File.separator + "bin" + File.separator + "javac";
 
         String[] compileCmdArray = new String[]{
                 javacPath,                      //编译器的绝对路径

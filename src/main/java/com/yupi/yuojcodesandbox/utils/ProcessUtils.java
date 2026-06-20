@@ -1,7 +1,6 @@
 package com.yupi.yuojcodesandbox.utils;
 
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.ExecStartCmd;
@@ -97,6 +96,18 @@ public class ProcessUtils {
             boolean isFinished = execStartCmd.exec(new ExecStartResultCallback()).awaitCompletion(timeLimit, TimeUnit.MILLISECONDS);
             // 3. 处理超时
             if (!isFinished) {
+                log.warn("检测到进程超时，准备清理沙箱内残留的僵尸进程...");
+                try {
+                    // 利用 pkill -9 强杀该容器内残留的程序
+                    String processName = language.equals("java") ? "java" : (language.equals("python") ? "python" : "main");
+                    String killCmd = "pkill -9 -f " + processName;
+                    ExecCreateCmdResponse killExec = dockerClient.execCreateCmd(containerId)
+                            .withCmd("sh", "-c", killCmd)
+                            .exec();
+                    dockerClient.execStartCmd(killExec.getId()).exec(new ExecStartResultCallback()).awaitCompletion();
+                } catch (Exception e) {
+                    log.error("清理超时残留进程失败", e);
+                }
                 executeMessage.setExitValue(-1);
                 executeMessage.setMemory(0L);
                 executeMessage.setMessage("Time Limit Exceeded");
@@ -110,23 +121,24 @@ public class ProcessUtils {
             if (errorFile.exists()) {
                 executeMessage.setMessage(FileUtil.readUtf8String(errorFile).trim());
             }
+
             // 读取底层资源监控统计
             File statsFile = new File(userOutputParentPath, "stats_" + index + ".txt");
             if (statsFile.exists()) {
                 String statsStr = FileUtil.readUtf8String(statsFile).trim();
-                // 精确解析 time 命令写入的时间和内存
-                if (statsStr.contains("time=")) {
-                    // 1. 截取 time= 和 &memory= 之间的时间字符串 (例如 "0.02")
-                    String timeStr = StrUtil.subBetween(statsStr, "time=", "&memory=");
-                    executeMessage.setTime((long) (Double.parseDouble(timeStr) * 1000));
-
-                    // 2. 截取 memory= 之后的所有内容作为内存字符串 (例如 "14524")
-                    String memStr = StrUtil.subAfter(statsStr, "memory=", false).trim();
-
-                    // 3. 健壮性处理：防止 time 命令在尾部输出多余的换行或空白字符
-                    memStr = memStr.split("\\s+")[0];
-                    executeMessage.setMemory(Long.parseLong(memStr));
+                String[] lines = statsStr.split("\n");
+                String actualStats = lines[lines.length - 1].trim();
+                String[] parts = actualStats.split(",");
+                if (parts.length >= 2) {
+                    // 第一部分是时间
+                    executeMessage.setTime((long) (Double.parseDouble(parts[0].trim()) * 1000));
+                    // 第二部分是内存
+                    executeMessage.setMemory(Long.parseLong(parts[1].trim()));
                 }
+            }
+            System.out.println(exitCode);
+            if (exitCode != null && exitCode == 9) {
+                executeMessage.setMessage("Memory Limit Exceeded");
             }
         } catch (Exception e) {
             log.error("代码执行异常{}", e.getMessage());
@@ -137,7 +149,7 @@ public class ProcessUtils {
     }
 
     private static String[] getCmdByLanguage(String language, String inputFilePath, Integer index) {
-        String timeFormat = "time=%e&memory=%M";
+        String timeFormat = "%e,%M";
         // 约定容器内的输出重定向路径（对应我们挂载的可写目录）
         String out = "/app/output/output_" + index + ".txt";
         String err = "/app/output/error_" + index + ".txt";
